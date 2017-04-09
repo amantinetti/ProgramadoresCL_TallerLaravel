@@ -1,0 +1,63 @@
+% pcl.sty
+% Package for Programadores Chile
+% Arturo Mantinetti dev@manti.cl
+
+\newif\ifatwasother
+\newcommand{\@setat}{%
+  \def\x{\the\catcode`@}
+  \ifnum\x=12 %special @, then make it normal
+    \atwasothertrue
+    \makeatletter
+  \else
+    \atwasotherfalse
+  \fi
+}
+\newcommand{\@unsetat}{%
+  \ifatwasother
+    \makeatother
+  \fi
+}
+
+
+\RequirePackage{xcolor}
+\RequirePackage{tikz}
+\definecolor{graypcl}{RGB}{57,56,60}
+\definecolor{redpcl}{RGB}{219,60,65}
+
+
+\def\@logotext
+\def\@logo{}
+\newcommand{\@setlogo}{\def\@logo{%
+\begin{minipage}{\@logosz}%
+\resizebox{\@logosz}{!}{\@logoholder}\\%
+\tiny \textbf{\@logotext}%
+\end{minipage}%
+}}
+\newcommand{\getlogo}{\@logo}% return the logo
+
+
+\def\@logosz{4.5cm}
+\newcommand{\setlogosz}[1]{\def\@logosz{#1}}
+\let\logosz\setlogosz
+
+% Setters for the logos
+\def\@logoholder{}
+
+
+\RequirePackage{etoolbox}
+\newcommand\setlogo[2][]{%
+  \@seta
+  \ifcsdef{@logo#2}{}%
+  {\input{logos/#2.tex}}% if not defined, load it
+  \@unsetat% reverts @
+  % sets the logholder for extra use
+  \expandafter\let\expandafter\@logoholder\csname @logo#2\endcsname%
+  \@setlogo%
+  \def\@logotext{#1}}
+  \def\@logotext{#1}}
+
+% default logo
+\setlogo{PCL}
+\usepackage[spanish]{babel}
+\selectlanguage{spanish}
+\usepackage[utf8]{inputenc}

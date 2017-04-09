@@ -1,0 +1,101 @@
+% Useful definitions for coding
+\def\fileversion{1.0}
+\def\filedate{2014/03/07}
+
+\typeout{Package: `codetools' \fileversion\space <\filedate>}
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{codetools}[\filedate\space\fileversion]
+
+\RequirePackage{listings}
+\RequirePackage{color}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codemauve}{rgb}{0.58,0,0.82}
+\definecolor{codered}{rgb}{0.6,0,0} % for strings
+
+% Patch the numbers to use literals
+% http://tex.stackexchange.com/a/110195/7561
+\lst@Key{numbers}{none}{%
+    \let\lst@PlaceNumber\@empty
+    \lstKV@SwitchCases{#1}%
+    {none&\\%
+     left&\def\lst@PlaceNumber{\llap{\normalfont
+                \lst@numberstyle{\thelstnumber}\kern\lst@numbersep}}\\%
+     leftliteral&\def\lst@PlaceNumber{\llap{\normalfont
+                \lst@numberstyle{\the\lst@lineno}\kern\lst@numbersep}}\\%
+     right&\def\lst@PlaceNumber{\rlap{\normalfont
+                \kern\linewidth \kern\lst@numbersep
+                \lst@numberstyle{\thelstnumber}}}%
+    }{\PackageError{Listings}{Numbers #1 unknown}\@ehc}}
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  showstringspaces=false,          % do not emphasize spaces in strings
+  breaklines=true,                 % automatic line breaking only at whitespace
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{codegreen},  % comment style
+  escapeinside={@*}{*@},           % if you want to add LaTeX within your code
+  keywordstyle=\bf\color{blue},    % keyword style
+  stringstyle=\color{codered},     % string literal style
+  % additional letters
+  literate=%
+    {á}{{\'{a}}}1
+    {é}{{\'{e}}}1
+    {í}{{\'{i}}}1
+    {ó}{{\'{o}}}1
+    {ú}{{\'{u}}}1
+    {ñ}{{\~{n}}}1
+    {Ñ}{{\~{N}}}1
+    {¿}{{?`}}1
+    {¡}{{!`}}1
+}
+
+% Highlights on lines using tikz
+% http://tex.stackexchange.com/a/49309/7561
+% E.g.,
+%  \lstdefinestyle{SQL}{
+%      language={SQL},basicstyle=\ttfamily, 
+%      moredelim=**[is][\btHL]{`}{`},
+%      moredelim=**[is][{\btHL[fill=green!30,draw=red,dashed,thin]}]{@}{@},
+%  }
+\newenvironment{btHighlight}[1][]
+{\begingroup\tikzset{bt@Highlight@par/.style={#1}}\begin{lrbox}{\@tempboxa}}
+{\end{lrbox}\bt@HL@box[bt@Highlight@par]{\@tempboxa}\endgroup}
+
+\newcommand\btHL[1][]{%
+  \begin{btHighlight}[#1]\bgroup\aftergroup\bt@HL@endenv%
+}
+\def\bt@HL@endenv{%
+  \end{btHighlight}%   
+  \egroup
+}
+\newcommand{\bt@HL@box}[2][]{%
+  \tikz[#1]{%
+    \pgfpathrectangle{\pgfpoint{1pt}{0pt}}{\pgfpoint{\wd #2}{\ht #2}}%
+    \pgfusepath{use as bounding box}%
+    \node[anchor=base west, fill=orange!30,outer sep=0pt,inner xsep=1pt, inner ysep=0pt, rounded corners=3pt, minimum height=\ht\strutbox+1pt,#1]{\raisebox{1pt}{\strut}\strut\usebox{#2}};
+  }%
+}
+
+
+
+\renewcommand{\lstlistingname}{Algoritmo}% Listing -> Algoritmo
+% bold in monospaced font
+\DeclareFontShape{OT1}{cmtt}{bx}{n}{<5><6><7><8><9><10><10.95><12><14.4><17.28><20.74><24.88>cmttb10}{}
+
+% ++ (plus plus) sign for diferent languages
+% create a more "suitable" plus plus sign
+\RequirePackage{hyperref}
+\RequirePackage{relsize}
+\RequirePackage{xspace}
+\DeclareRobustCommand{\plusplus}{\nolinebreak[4]\hspace{-.05em}\raisebox{.3ex}{\relsize{-3}{\textbf{++}}}\xspace}
+\pdfstringdefDisableCommands{%
+  \def\plusplus{++}%
+}
+
+% coding shorthands
+\RequirePackage{xspace}
+\DeclareRobustCommand{\clang}{\texttt{C}\xspace}
+\DeclareRobustCommand{\cpplang}{\texttt{C\plusplus}\xspace}
+\DeclareRobustCommand{\cppxlang}[1]{\texttt{C\nolinebreak[4]\hspace{-.05em}\raisebox{.3ex}{\relsize{-3}{\textbf{++}}}#1}\xspace}

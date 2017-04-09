@@ -1,0 +1,134 @@
+\RequirePackage{calc}
+\RequirePackage{xkeyval}
+\newlength{\@length}
+
+% Define the keys for the doublecolumnframe (dcl)
+% Remember: \define@cmdkey[prefix]{family}[mp]{key}   [default]{function}
+\define@cmdkey[pcl]{dcf}{title}{}%    title of the frame
+\define@cmdkey[pcl]{dcf}{subtitle}{}%    subtitle of the frame
+\define@cmdkey[pcl]{dcf}{wp}{}% width percentage
+\define@cmdkey[pcl]{dcf}{align}{}% alignment of the columns
+\presetkeys[pcl]{dcf}{title=,subtitle=,wp=0.5,align=c}{}
+
+\newcommand{\doublecolumnframe}[3][]{%
+\setkeys[pcl]{dcf}{#1}
+\begin{frame}{\cmdpcl@dcf@title}{\cmdpcl@dcf@subtitle}%
+  \begin{columns}[\cmdpcl@dcf@align]
+    \begin{column}{\cmdpcl@dcf@wp\linewidth}%
+    #2%
+    \end{column}%
+    \hfill%
+    \setlength{\@length}{\linewidth-\cmdpcl@dcf@wp\linewidth}%
+    \begin{column}{\@length}%
+    #3%
+    \end{column}%
+  \end{columns}%
+\end{frame}%
+}
+
+% Define the keys for the floatitemframe (fif)
+% Remember: \define@cmdkey[prefix]{family}[mp]{key}   [default]{function}
+\define@cmdkey[pcl]{fif}{title}{}%    title of the frame
+\define@cmdkey[pcl]{fif}{wp}{}% width percentage
+\define@cmdkey[pcl]{fif}{align}{}% alignment of the columns
+
+\presetkeys[pcl]{fif}{title=,wp=0.5,align=c}{}
+
+\newcommand{\floatitemframe}[5][]{%
+\setkeys[pcl]{fif}{#1}
+\begin{frame}{\cmdpcl@fif@title}%
+  \begin{itemize}
+    #2%
+  \begin{columns}[\cmdpcl@fif@align]
+    \begin{column}{\leftmargini}
+    \end{column}
+    \begin{column}{\cmdpcl@fif@wp\linewidth}%
+    #3%
+    \end{column}%
+    \setlength{\@length}{\linewidth-\cmdpcl@fif@wp\linewidth}%
+    \begin{column}{\@length}%
+    #4%
+    \end{column}%
+  \end{columns}%
+  #5
+  \end{itemize}
+\end{frame}%
+}
+
+
+% Define the keys for the varblock (vb)
+% Remember: \define@cmdkey[prefix]{family}[mp]{key}   [default]{function}
+\define@cmdkey[pcl]{vb}{titlebg}{}% color for title bg
+\define@cmdkey[pcl]{vb}{titlefg}{}% color for title fg
+\define@cmdkey[pcl]{vb}{bodybg}{}% color for body bg
+\define@cmdkey[pcl]{vb}{bodyfg}{}% color for body fg
+\define@cmdkey[pcl]{vb}{width}{}% block width
+\define@cmdkey[pcl]{vb}{align}{}% block width
+\presetkeys[pcl]{vb}{titlebg=structure.fg!75!black,titlefg=white,bodybg=block title.bg!10!bg,bodyfg=black,width=\textwidth,align=c}{}
+
+% Variable block
+\newenvironment<>{varblock}[2][]{%
+\setkeys[pcl]{vb}{#1}
+  \begingroup
+  \setbeamercolor{block title}{bg=\cmdpcl@vb@titlebg,fg=\cmdpcl@vb@titlefg}%bg=background, fg= foreground
+  \setbeamercolor{block body}{bg=\cmdpcl@vb@bodybg,fg=\cmdpcl@vb@bodyfg}%bg=background, fg= foreground
+  \begin{minipage}[\cmdpcl@vb@align]{\cmdpcl@vb@width}
+  \begin{actionenv}#3%
+    \def\insertblocktitle{#2}%
+    \par%
+  \usebeamertemplate{block begin}
+}{%
+  \par%
+  \usebeamertemplate{block end}%
+  \end{actionenv}
+  \end{minipage}
+  \endgroup
+}
+
+% Example varblock
+\newenvironment<>{examplevarblock}[2][]{
+\begin{varblock}[titlefg={block title example.fg},titlebg={block title example.bg},bodybg={white},#1]{#2}
+}{
+\end{varblock}
+}
+
+% smaller fonts
+\RequirePackage{lmodern}
+\newcommand{\mini}{\@setfontsize\miniscule{5}{6}}% \tiny: 6/7
+
+% Other commands
+\newcommand\ChangeItemFont[3]{%
+\renewcommand{\itemize}[1][]{%
+  \beamer@ifempty{##1}{}{\def\beamer@defaultospec{#1}}%
+  \ifnum \@itemdepth >2\relax\@toodeep\else
+    \advance\@itemdepth\@ne
+    \beamer@computepref\@itemdepth% sets \beameritemnestingprefix
+    \usebeamerfont{itemize/enumerate \beameritemnestingprefix body}%
+    \usebeamercolor[fg]{itemize/enumerate \beameritemnestingprefix body}%
+    \usebeamertemplate{itemize/enumerate \beameritemnestingprefix body begin}%
+    \list
+      {\usebeamertemplate{itemize \beameritemnestingprefix item}}
+      {\def\makelabel####1{%
+          {%
+            \hss\llap{{%
+                \usebeamerfont*{itemize \beameritemnestingprefix item}%
+                \usebeamercolor[fg]{itemize \beameritemnestingprefix item}####1}}%
+          }%
+        }%
+  \ifnum\@itemdepth=1\relax
+    #1%
+  \else
+  \ifnum\@itemdepth=2\relax
+    #2%
+  \else
+  \ifnum\@itemdepth=3\relax
+    #3%
+  \fi%
+  \fi%
+  \fi%
+  }
+  \fi%
+  \beamer@cramped%
+  \raggedright%
+  \beamer@firstlineitemizeunskip%
+}}

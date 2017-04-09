@@ -1,0 +1,348 @@
+% This package is a port of drawstack.sty by Matthieu Moy <Matthieu.Moy@imag.fr>
+\NeedsTeXFormat{LaTeX2e}
+
+\ProvidesPackage{stackz}[2015/02/10 Draw Execution Stack in LaTeX]
+
+\RequirePackage{tikz}
+\usetikzlibrary{positioning,calc,shapes,
+decorations.pathmorphing,%
+decorations.pathreplacing,%
+}
+
+\RequirePackage{etoolbox}
+
+\pgfkeys{
+  /stackz/.cd,%
+  % standard colors
+  %todo maybe move this definition to a color scheme?
+  cell fg/.store in=\@cell@fg,
+  cell fg=cyan,
+  cell bg/.store in=\@cell@bg,
+  cell bg=black,
+  struct fg/.store in=\@struct@fg,
+  struct fg=blue,
+  struct bg/.store in=\@struct@bg,
+  struct bg=black,
+  high fg/.store in=\@high@fg,
+  high fg=red,
+  high bg/.store in=\@high@bg,%
+  high bg=black,
+  address fg/.store in=\@address@fg,%
+  address fg=blue!80!cyan,
+  %
+  % arguments used in macros
+  cell/.style={freecell},
+  size/.code=\pgfmathsetmacro{\@size}{#1},
+  size/.default=1,
+  offset/.code=\pgfmathsetmacro{\@offset}{#1},
+  offset/.default=.5,
+  coord/.store in=\@coord,
+  anchor/.store in=\@anchor,
+  %
+  cell width/.store in=\@minwidth,
+  cell width=4cm,
+  cell height/.store in=\@minheight,
+  cell height=1cm,
+  address/.store in=\@address@bottom,
+  address=,
+  address bottom/.store in=\@address@bottom,
+  address bottom=,
+  address top/.store in=\@address@top,
+  address top=,
+  address left bottom/.store in=\@address@bottom,
+  address left bottom=,
+  address left top/.store in=\@address@top,
+  address left top=,
+  address right bottom/.store in=\@address@right@bottom,
+  address right bottom=,
+  address right top/.store in=\@address@right@top,
+  address right top=,
+  align/.store in=\@align,
+  align=r,
+  cell alias/.store in=\@cell@alias,
+  cell alias=,
+  %
+  % the styles should be on the tikz tree (so it is compatible with it)
+  /tikz/.cd,
+  color cell/.style 2 args={fill=#1,draw=#2},
+  phantomcell/.style={color cell={none}{none}},
+  freecell/.style 2 args={color cell={#1}{#2}},
+  freecell/.default={\@cell@fg!10}{\@cell@fg!30!\@cell@bg},%
+  %
+  textcell/.style 2 args={align=center,  text width=#1, minimum width=#1,minimum height=#2,outer sep=0pt},%
+  textcell/.default={\@minwidth}{\@minheight},
+  %
+  freestruct/.style 2 args={color cell={#1}{#2}},
+  freestruct/.default={\@struct@fg!10}{\@struct@fg!30!\@struct@bg},%
+  %
+  occupiedcell/.style 2 args={color cell={#1}{#2}},%
+  occupiedcell/.default={\@cell@fg!10!\@high@fg!50}{\@cell@fg!30!\@cell@bg},
+  %
+  padding/.style 2 args={color cell={#1}{#2}},
+  padding/.default={\@cell@fg!10!\@cell@bg!20}{\@cell@fg!30!\@cell@bg},%
+  %
+  highlight/.style 2 args={draw=#1,text=#2},
+  highlight/.default={\@high@fg!50!\@high@bg}{\@high@fg!50!\@high@bg},%
+  %
+  address/.style={color=#1,font=\footnotesize},
+  address/.default=\@address@fg,
+  %
+  default cell/.style={textcell, minimum height={#1*\@minheight}, below=-.5pt of \@prev@cell, alias=currentcell},
+  default cell/.default={1},%
+  % helpers to get execution on styles
+  execute style/.style = {#1},
+  execute macro/.style = {execute style/.expand once=#1},%
+}
+
+\DeclareOption{nocolor}{
+  \pgfkeys{
+    /stackz/.cd,
+    cell fg=white,
+    cell bg=black,
+    struct fg=white,
+    struct bg=black,
+    high fg=black,
+    high bg=black,
+    address fg=black!70,
+  }
+}
+\ProcessOptions
+
+\pgfdeclarelayer{background layer}
+\pgfdeclarelayer{foreground layer}
+\pgfsetlayers{background layer,main,foreground layer}
+
+
+\newcounter{cellnb}
+\newcounter{structnb}
+\newcounter{prevcell}
+
+\setcounter{cellnb}{0}
+
+\newcommand{\@cell@num}[1]{cell#1-\pgfpictureid}
+\newcommand{\@cur@cell}{\@cell@num{\thecellnb}}
+\newcommand{\@prev@cell}{\@cell@num{\theprevcell}}
+
+\newcommand{\llcell}[2]{
+  \setcounter{prevcell}{\value{cellnb}}
+  \addtocounter{cellnb}{1}
+  \setcounter{ptrnb}{0}
+  \node[default cell=#1, /stackz/cell, alias=\@cell@alias] (\@cur@cell) {#2};
+}
+
+%\newcommand{\bigcell}[2]{
+%  \llcell{#1}{freecell}{#2}
+%  \foreach \c in {2,...,#1} {
+%    \draw[freecell]
+%    (-2,\value{cellnb}+\c-1.5) -- (-1.7,\value{cellnb}+\c-1.5);
+%    \draw[freecell]
+%    (1.7,\value{cellnb}+\c-1.5) -- (2,\value{cellnb}+\c-1.5);
+%  }
+%}
+
+% Macros for address formating
+% replaces spaces with thin spaces
+\def\addresstt#1{%
+\begingroup
+  \edef\@tempa{#1\space}%
+  \expandafter\endgroup
+  \expandafter\readwords\@tempa\relax
+}
+\def\readwords#1 #2\relax{%
+  \doword{#1}%  #1 = substr, #2 = rest of string
+  \begingroup
+  \ifx\relax#2\relax  % is #2 empty?
+     \def\next{\endgroup\endtestwords}% your own end-macro if required
+  \else
+     \def\next{\endgroup\,\readwords#2\relax}%
+  \fi
+  \next
+}
+\def\doword#1{\texttt{#1}}
+\def\endtestwords{}
+
+\newcommand{\cell}[2][]{%
+  \pgfkeys{/stackz/.cd,
+    size=1,
+    cell/.style={freecell},
+    address bottom=,address top=,
+    address right bottom=,address right top=,
+    cell alias=,
+    #1}
+  \llcell{\@size}{#2}
+  % type set left
+  \ifdefempty{\@address@bottom}{}{
+    \draw ($(\@cur@cell.south west)$) node[anchor=south east,address] {\addresstt{\@address@bottom}};
+  }
+  \ifdefempty{\@address@top}{}{
+    \draw ($(\@cur@cell.north west)$) node[anchor=north east,address] {\addresstt{\@address@top}};
+  }
+  % type set right
+  \ifdefempty{\@address@right@bottom}{}{
+    \draw ($(\@cur@cell.south east)$) node[anchor=south west,address] {\addresstt{\@address@right@bottom}};
+  }
+  \ifdefempty{\@address@right@top}{}{
+    \draw ($(\@cur@cell.north east)$) node[anchor=north west,address] {\addresstt{\@address@right@top}};
+  }
+}
+
+\newcommand{\separator}[1][]{
+  \pgfkeys{/stackz/.cd,
+  cell/.style={freecell,line width=2pt,},
+  #1}
+  \begin{pgfonlayer}{foreground layer}
+    \draw[/stackz/cell] (\@cur@cell.south west) -- (\@cur@cell.south east);
+  \end{pgfonlayer}
+}
+
+
+% Pointer to the next cell, useful if the next cell has size != 0.
+\newcommand{\cellptrnext}[2][]{
+  \draw[<-,line width=1pt] (0,\value{cellnb}-1) +(2,\value{ptrnb}*0.1) -- +(2.5,\value{ptrnb}*0.45);
+  \draw (2.5,\value{ptrnb}*0.5+\value{cellnb}-1) node[anchor=west] {#2};
+  \addtocounter{ptrnb}{1}
+}
+\newcounter{ptrnb}
+\newcommand{\cellptr}[2][]{
+  \pgfkeys{/stackz/.cd,
+    cell/.style={textcell={1cm}{\@minheight},outer sep=0pt,inner sep=0pt},
+    arrow/.style={line width=1pt},
+    offset=0.5,
+    align=r,
+  #1}
+  \expandafter\ifstrequal\@align{l}{%
+  %left side brace
+    \pgfkeys{/stackz/.cd,anchor=west,offset=-.3,#1}
+    \draw[<-,/stackz/arrow] ($(\@cur@cell.\@anchor)$) -- +(\@offset,\value{ptrnb}*0.35) node[anchor=east,/stackz/cell] {#2};
+  }{%
+  %right side brace
+    \pgfkeys{/stackz/.cd,anchor=east,#1}
+    \draw[<-,/stackz/arrow] ($(\@cur@cell.\@anchor)$) -- +(\@offset,\value{ptrnb}*0.35) node[anchor=west,/stackz/cell] {#2};
+  }
+  \addtocounter{ptrnb}{1}
+}
+\newcommand{\esp}[1][cell/.append style={minimum width=1cm,text width=1cm}]{\cellptr[#1]{\texttt{\%esp}}}
+\newcommand{\ebp}[1][cell/.append style={minimum width=1cm,text width=1cm}]{\cellptr[#1]{\texttt{\%ebp}}}
+
+
+% like cellptr, but without the arrow
+\newcommand{\cellcom}[2][]{
+  \pgfkeys{/stackz/.cd,
+    cell/.style={text width=1cm},
+    align=r,
+    #1}
+  \expandafter\ifstrequal\@align{l}{%
+  %left side brace
+    \pgfkeys{/stackz/.cd,anchor=west,#1}
+    \draw ($(\@cur@cell.\@anchor)+(-5pt,0)$) node[anchor=east, /stackz/cell] {#2};
+  }{%
+  %right side brace
+    \pgfkeys{/stackz/.cd,anchor=east,#1}
+    \draw ($(\@cur@cell.\@anchor)+(5pt,0)$) node[anchor=west, /stackz/cell] {#2};
+  }
+}
+
+
+\newcommand{\cellround}[2][xshift=3cm]{
+  \begin{pgfonlayer}{foreground layer}
+    \draw[highlight] (\@cur@cell)
+    node[shape=ellipse,draw, minimum width=3cm, minimum height=0.9cm]
+    (marked) {};
+    \draw[highlight] (\@cur@cell) node[anchor=west,#1] (textmarked) {#2};
+    \draw[highlight,->] (marked) -- (textmarked);
+  \end{pgfonlayer}
+}
+
+
+\newcommand{\stacktop}[1][]{
+  \pgfkeys{/stackz/.cd,
+    cell/.style={freecell},
+    #1}
+  \setcounter{cellnb}{0}
+  \draw (0,0) node[textcell, alias=\@cell@alias](\@cur@cell) {...};
+  \begin{pgfonlayer}{background layer}
+    \draw[/stackz/cell] (\@cur@cell.north west) -- (\@cur@cell.south west) -- (\@cur@cell.south east) -- (\@cur@cell.north east);
+  \end{pgfonlayer}
+}
+
+\newcommand{\stackbottom}[1][]{
+  \pgfkeys{/stackz/.cd,
+    cell/.style={freecell},
+    #1}
+  \setcounter{prevcell}{\value{cellnb}}
+  \addtocounter{cellnb}{1}
+  \setcounter{ptrnb}{0}
+  \node[textcell, below=-.5pt of \@prev@cell] (\@cur@cell) {...};
+  \begin{pgfonlayer}{background layer}
+    \draw[/stackz/cell] (\@cur@cell.south west) -- (\@cur@cell.north west) -- (\@cur@cell.north east) -- (\@cur@cell.south east);
+  \end{pgfonlayer}
+}
+
+\newenvironment{drawstack}[1][]%
+{\pgfkeys{/stackz/.cd,#1}\begin{tikzpicture}\stacktop{}}%
+{\stackbottom\end{tikzpicture}}
+
+\newcommand{\initstack}{%
+  \coordinate (\@cell@num{0}) at (0,0);
+  \setcounter{cellnb}{0}
+}
+
+\newenvironment{drawfullstack}[1][]%
+{\pgfkeys{/stackz/.cd,#1}\begin{tikzpicture}
+  % since there is not top, we need to create a cell0 artificially
+  \initstack%
+}%
+{\end{tikzpicture}}
+
+%\newcommand{\bcell}[1]{\cell[style=occupiedcell]{#1}}
+\newcommand{\padding}[2][]{\cell[cell/.style=padding,size=1,#1]{#2}}
+\newcommand{\bstacktop}[0]{\stacktop[cell/.style=occupiedcell]}
+\newcommand{\bstackbottom}[0]{\stackbottom[cell/.style=occupiedcell]}
+
+
+\newcounter{startframe}
+\newcommand{\startframe}[0]{
+  \setcounter{startframe}{\value{cellnb}}
+  \addtocounter{startframe}{1}
+}
+\newcommand{\finishframe}[2][]{
+  \pgfkeys{/stackz/.cd,
+  align=l,
+  #1}
+  \expandafter\ifstrequal\@align{l}{%
+  %left side brace
+    \draw [decorate,decoration={brace,amplitude=10pt,mirror}]     ($(\@cell@num{\thestartframe}.north west)+(-5pt,0)$) -- ($(\@cur@cell.south west)+(-5pt,0)$) node[midway,anchor=east,xshift=-10pt,text width=3cm,align=right] {#2};
+  }{%
+  %right side brace
+    \draw [decorate,decoration={brace,amplitude=10pt}] ($(\@cell@num{\thestartframe}.north east)+(5pt,0)$) -- ($(\@cur@cell.south east)+(5pt,0)$) node[midway,text width=3cm,align=left,xshift=10pt,anchor=west] {#2};
+  }
+}
+\newcommand{\stackframe}[3]{
+  \draw [decorate,decoration={brace,amplitude=10pt}] (-2,-#1-0.5) -- (-2,-#2-0.5);
+  \draw (0, #1) node {#3};
+}
+
+\newcommand{\drawstruct}[1]{
+  \setcounter{structnb}{0}
+  \path #1 coordinate (structpos);
+  \path (structpos) ++ (0,\value{structnb}) +(-1.6,-.5) coordinate (structtopleft);
+}
+
+\newcommand{\llstructcell}[3]{
+    \addtocounter{structnb}{-#1}
+    \path (structpos) ++ (0,\value{structnb}) +(-1.6,-.5) coordinate (topleft);
+    \path (structpos) ++ (0,\value{structnb}) +(-1.6,-.5+#1) coordinate (bottomleft);
+    \path (structpos) ++ (0,\value{structnb}) +( 1.6,-.5+#1) coordinate (bottomright);
+    \draw[#2] (topleft) rectangle (bottomright);
+    \draw (structpos) ++ (0,\value{structnb}+#1/2-0.5) node (currentcell){#3};
+}
+
+\newcommand{\structcell}[2][freestruct]{%
+  \llstructcell{1}{#1}{#2}
+}
+
+\newcommand{\structname}[1]{
+  \path (structpos) ++ (0,\value{structnb}) +(-1.6,-.5) coordinate (structbottomleft);
+  \draw (barycentric cs:structtopleft=.5,structbottomleft=.5)
+  node[rotate=90,anchor=south] {#1};
+}
